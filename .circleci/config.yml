@@ -1,0 +1,59 @@
+#cat >.circleci/config.yml<<EOF
+jobs:
+  build:
+    machine: true
+    steps:
+      - checkout
+      - run: echo "This is a build step"
+      
+  tflint:
+    machine: true
+    steps:
+      - checkout
+
+      - run: docker run --rm -v $(pwd):/data -t ghcr.io/terraform-linters/tflint --chdir=aws -f json | tee tflint-output.json
+
+      - store_artifacts:
+          path: tflint-output.json
+          destination: tflint-artifact
+          
+  test:
+    machine: true
+    steps:
+      - checkout
+      - run: echo "This is a test step"
+
+  integration:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          command: |
+            echo "This is an integration step"
+            exit 1
+
+  prod:
+    machine: true
+    steps:
+      - checkout
+      - run: echo "This is a deploy step"
+
+workflows:
+  version: 2
+  terraform:
+    jobs:
+      - build
+      - tflint:
+          requires:
+            - build 
+      - test:
+          requires:
+            - tflint 
+      - integration:
+          requires:
+            - test
+      - prod:
+          type: approval
+          requires:
+            - integration
+#EOF
